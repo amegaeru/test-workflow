@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: typescript-ci-main
+  group: js-deploy-main
   cancel-in-progress: false
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           cd app
           npm run lint
 
-  deploy-to-verify-s3:
+  deploy-to-pre-s3:
     needs:
       - js-linter
     continue-on-error: false
@@ -59,13 +59,13 @@ jobs:
           role-to-assume: ${{ secrets.PRE_AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Deploy to verify S3
+      - name: Deploy to pre S3
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 sync ./app "s3://${{ secrets.PRE_S3_BUCKET_NAME }}" --delete
+          aws s3 sync ./app/js "s3://${{ secrets.PRE_S3_BUCKET_NAME }}/js" --delete
 
-      - name: Invalidate verify CloudFront cache
+      - name: Invalidate pre CloudFront cache
         shell: bash
         run: |
           set -euo pipefail
@@ -73,9 +73,19 @@ jobs:
             --distribution-id "${{ secrets.PRE_CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
 
-  deploy-to-prod-s3:
+  com-approve:
     needs:
-      - deploy-to-verify-s3
+      - deploy-to-pre-s3
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    environment: com
+    steps:
+      - name: Approval job complete
+        run: echo "号口環境へのデプロイが承認されました。後続のJobが実行されます。"
+
+  deploy-to-com-s3:
+    needs:
+      - com-approve
     continue-on-error: false
     runs-on: ubuntu-latest
     permissions:
@@ -91,17 +101,16 @@ jobs:
           role-to-assume: ${{ secrets.COM_AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Deploy to prod S3
+      - name: Deploy to com S3
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 sync ./app "s3://${{ secrets.COM_S3_BUCKET_NAME }}" --delete
+          aws s3 sync ./app/js "s3://${{ secrets.COM_S3_BUCKET_NAME }}/js" --delete
 
-      - name: Invalidate prod CloudFront cache
+      - name: Invalidate com CloudFront cache
         shell: bash
         run: |
           set -euo pipefail
           aws cloudfront create-invalidation \
             --distribution-id "${{ secrets.COM_CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
-
