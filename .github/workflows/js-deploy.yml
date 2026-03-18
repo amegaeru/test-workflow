@@ -15,7 +15,7 @@ concurrency:
 jobs:
   js-linter:
     continue-on-error: false
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
     needs:
       - js-linter
     continue-on-error: false
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
@@ -77,7 +77,7 @@ jobs:
     needs:
       - deploy-to-s3
     continue-on-error: false
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     environment: production
     permissions:
       id-token: write
