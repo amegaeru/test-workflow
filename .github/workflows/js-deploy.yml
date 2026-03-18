@@ -1,4 +1,4 @@
-name: TypeScript CI
+﻿name: JS Deploy
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
           cd app
           npm run lint
 
-  deploy-to-s3:
+  deploy-to-verify-s3:
     needs:
       - js-linter
     continue-on-error: false
@@ -56,29 +56,28 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.PRE_AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Deploy to S3
+      - name: Deploy to verify S3
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 sync ./app "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
+          aws s3 sync ./app "s3://${{ secrets.PRE_S3_BUCKET_NAME }}" --delete
 
-      - name: Invalidate CloudFront cache
+      - name: Invalidate verify CloudFront cache
         shell: bash
         run: |
           set -euo pipefail
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ secrets.PRE_CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
 
-  deploy-to-s3-after-approval:
+  deploy-to-prod-s3:
     needs:
-      - deploy-to-s3
+      - deploy-to-verify-s3
     continue-on-error: false
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       id-token: write
       contents: read
@@ -89,19 +88,20 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.COM_AWS_ROLE_ARN }}
           aws-region: ap-northeast-1
 
-      - name: Deploy to S3 after approval
+      - name: Deploy to prod S3
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 sync ./app "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
+          aws s3 sync ./app "s3://${{ secrets.COM_S3_BUCKET_NAME }}" --delete
 
-      - name: Invalidate CloudFront cache after approval
+      - name: Invalidate prod CloudFront cache
         shell: bash
         run: |
           set -euo pipefail
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ secrets.COM_CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
+
