@@ -5,7 +5,7 @@ role_name          = "github-actions-s3-fullaccess"
 s3_bucket_name     = "test-static-site-bucket-example"
 transfer_user_name = "html-uploader"
 
-github_repository          = "div-nagoya/takahashi_test"
+github_repository          = "amegaeru/test-workflow"
 github_branches            = ["main"]
 existing_oidc_provider_arn = "arn:aws:iam::832194395201:oidc-provider/token.actions.githubusercontent.com"
 
