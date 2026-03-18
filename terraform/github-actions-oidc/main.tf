@@ -145,6 +145,25 @@ resource "aws_iam_role_policy_attachment" "s3_full_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
 
+data "aws_iam_policy_document" "github_actions_cloudfront" {
+  statement {
+    sid    = "AllowCreateInvalidation"
+    effect = "Allow"
+    actions = [
+      "cloudfront:CreateInvalidation"
+    ]
+    resources = [
+      aws_cloudfront_distribution.site.arn
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_cloudfront" {
+  name   = "${var.resource_prefix}${var.role_name}-cloudfront"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_cloudfront.json
+}
+
 # data "aws_iam_policy_document" "transfer_family_trust" {
 #   statement {
 #     effect  = "Allow"
