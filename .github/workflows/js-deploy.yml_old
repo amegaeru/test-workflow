@@ -1,0 +1,90 @@
+name: TypeScript CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "app/**"
+  workflow_dispatch:
+
+concurrency:
+  group: typescript-ci-main
+  cancel-in-progress: false
+
+jobs:
+  js-linter:
+    continue-on-error: false
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm ci
+
+      - name: Run ESLint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm run lint
+
+  deploy-to-s3:
+    needs:
+      - js-linter
+    continue-on-error: false
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy to S3
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync ./app "s3://takahashi-test-static-site-bucket-example" --delete
+
+  deploy-to-s3-after-approval:
+    needs:
+      - deploy-to-s3
+    continue-on-error: false
+    runs-on: [self-hosted, Linux, X64]
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy to S3 after approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync ./app "s3://takahashi-test-static-site-bucket-example" --delete
