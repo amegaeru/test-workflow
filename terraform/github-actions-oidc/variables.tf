@@ -8,30 +8,9 @@ variable "resource_prefix" {
   type        = string
 }
 
-variable "role_name" {
-  description = "IAM role base name assumed by GitHub Actions."
-  type        = string
-}
-
-variable "s3_bucket_name" {
-  description = "S3 bucket base name to create."
-  type        = string
-}
-
-variable "transfer_user_name" {
-  description = "Transfer Family user name."
-  type        = string
-}
-
 variable "github_repository" {
   description = "GitHub repository in the form owner/repo."
   type        = string
-}
-
-variable "github_branches" {
-  description = "Allowed branches for OIDC assumption."
-  type        = list(string)
-  default     = ["main"]
 }
 
 variable "github_oidc_thumbprint_list" {
@@ -44,16 +23,15 @@ variable "existing_oidc_provider_arn" {
   type        = string
 }
 
-variable "cloudfront_comment" {
-  description = "Comment for the CloudFront distribution."
-  type        = string
-  default     = "Static site distribution"
-}
-
-variable "cloudfront_price_class" {
-  description = "CloudFront price class."
-  type        = string
-  default     = "PriceClass_200"
+variable "environments" {
+  description = "Per-environment AWS resources and allowed branches."
+  type = map(object({
+    role_name              = string
+    s3_bucket_name         = string
+    github_environment     = string
+    cloudfront_comment     = optional(string, "Static site distribution")
+    cloudfront_price_class = optional(string, "PriceClass_200")
+  }))
 }
 
 variable "tags" {
