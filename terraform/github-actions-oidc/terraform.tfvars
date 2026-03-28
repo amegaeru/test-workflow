@@ -13,21 +13,21 @@ environments = {
   dev = {
     role_name              = "github-actions-dev"
     s3_bucket_name         = "test-static-site-dev-bucket-example"
-    github_branches        = ["dev"]
+    github_environment     = "dev"
     cloudfront_comment     = "test static site dev"
     cloudfront_price_class = "PriceClass_200"
   }
   pre = {
     role_name              = "github-actions-pre"
     s3_bucket_name         = "test-static-site-pre-bucket-example"
-    github_branches        = ["pre"]
+    github_environment     = "pre"
     cloudfront_comment     = "test static site pre"
     cloudfront_price_class = "PriceClass_200"
   }
   com = {
     role_name              = "github-actions-com"
     s3_bucket_name         = "test-static-site-com-bucket-example"
-    github_branches        = ["com"]
+    github_environment     = "com"
     cloudfront_comment     = "test static site com"
     cloudfront_price_class = "PriceClass_200"
   }
