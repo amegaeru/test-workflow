@@ -57,7 +57,7 @@ permissions:
   contents: read
 
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v6
 
   - name: Configure AWS credentials
     uses: aws-actions/configure-aws-credentials@v6
