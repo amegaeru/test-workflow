@@ -13,54 +13,42 @@ output "client_id_list" {
   value       = ["sts.amazonaws.com"]
 }
 
-output "github_actions_role_arn" {
-  description = "IAM role ARN assumed by GitHub Actions."
-  value       = aws_iam_role.github_actions.arn
+output "github_actions_role_arns" {
+  description = "IAM role ARNs assumed by GitHub Actions."
+  value = {
+    for env, role in aws_iam_role.github_actions :
+    env => role.arn
+  }
 }
 
-output "github_actions_role_name" {
-  description = "IAM role name assumed by GitHub Actions."
-  value       = aws_iam_role.github_actions.name
+output "github_actions_role_names" {
+  description = "IAM role names assumed by GitHub Actions."
+  value = {
+    for env, role in aws_iam_role.github_actions :
+    env => role.name
+  }
 }
 
-output "s3_bucket_name" {
-  description = "Created S3 bucket name."
-  value       = aws_s3_bucket.site_bucket.bucket
+output "s3_bucket_names" {
+  description = "Created S3 bucket names."
+  value = {
+    for env, bucket in aws_s3_bucket.site_bucket :
+    env => bucket.bucket
+  }
 }
 
-output "cloudfront_distribution_id" {
-  description = "CloudFront distribution ID."
-  value       = aws_cloudfront_distribution.site.id
+output "cloudfront_distribution_ids" {
+  description = "CloudFront distribution IDs."
+  value = {
+    for env, distribution in aws_cloudfront_distribution.site :
+    env => distribution.id
+  }
 }
 
-output "cloudfront_distribution_domain_name" {
-  description = "CloudFront distribution domain name."
-  value       = aws_cloudfront_distribution.site.domain_name
+output "cloudfront_distribution_domain_names" {
+  description = "CloudFront distribution domain names."
+  value = {
+    for env, distribution in aws_cloudfront_distribution.site :
+    env => distribution.domain_name
+  }
 }
-
-# output "transfer_server_id" {
-#   description = "AWS Transfer Family server ID."
-#   value       = aws_transfer_server.site_upload.id
-# }
-#
-# output "transfer_server_endpoint" {
-#   description = "AWS Transfer Family server endpoint."
-#   value       = aws_transfer_server.site_upload.endpoint
-# }
-#
-# output "transfer_user_name" {
-#   description = "AWS Transfer Family user name."
-#   value       = aws_transfer_user.site_upload.user_name
-# }
-#
-# output "transfer_user_public_key" {
-#   description = "Generated SSH public key for the Transfer Family user."
-#   value       = tls_private_key.transfer_family.public_key_openssh
-# }
-#
-# output "transfer_user_private_key_pem" {
-#   description = "Generated SSH private key for the Transfer Family user."
-#   value       = tls_private_key.transfer_family.private_key_pem
-#   sensitive   = true
-# }
-
