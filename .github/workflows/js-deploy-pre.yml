@@ -1,15 +1,13 @@
-﻿name: JS Deploy
+name: JS Deploy Pre
 
 on:
   push:
     branches:
       - main
-    paths:
-      - "app/**"
   workflow_dispatch:
 
 concurrency:
-  group: js-deploy-main
+  group: js-deploy-pre-main
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ vars.NODE_VERSION }}
           cache: npm
           cache-dependency-path: app/package-lock.json
 
@@ -41,11 +39,41 @@ jobs:
           cd app
           npm run lint
 
-  deploy-to-pre-s3:
-    needs:
-      - js-linter
+  js-audit:
     continue-on-error: false
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm ci
+
+      - name: Run npm audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm audit --audit-level=high
+
+  deploy-to-pre:
+    needs:
+      - js-linter
+      - js-audit
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    environment: pre
     permissions:
       id-token: write
       contents: read
@@ -56,61 +84,32 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.PRE_AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Backup current pre S3 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_path="s3://${{ secrets.S3_BUCKET_NAME }}/js"
+          backup_path="s3://${{ secrets.S3_BUCKET_NAME }}/backup/js-previous"
+
+          if aws s3 ls "${source_path}/" >/dev/null 2>&1; then
+            aws s3 sync "${source_path}" "${backup_path}" --delete
+          else
+            echo "No existing pre files to back up."
+          fi
 
       - name: Deploy to pre S3
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 sync ./app/js "s3://${{ secrets.PRE_S3_BUCKET_NAME }}/js" --delete
+          aws s3 sync ./app/js "s3://${{ secrets.S3_BUCKET_NAME }}/js" --delete
 
       - name: Invalidate pre CloudFront cache
         shell: bash
         run: |
           set -euo pipefail
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.PRE_CLOUDFRONT_DISTRIBUTION_ID }}" \
-            --paths "/*"
-
-  com-approve:
-    needs:
-      - deploy-to-pre-s3
-    continue-on-error: false
-    runs-on: ubuntu-latest
-    environment: com
-    steps:
-      - name: Approval job complete
-        run: echo "号口環境へのデプロイが承認されました。後続のJobが実行されます。"
-
-  deploy-to-com-s3:
-    needs:
-      - com-approve
-    continue-on-error: false
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.COM_AWS_ROLE_ARN }}
-          aws-region: ap-northeast-1
-
-      - name: Deploy to com S3
-        shell: bash
-        run: |
-          set -euo pipefail
-          aws s3 sync ./app/js "s3://${{ secrets.COM_S3_BUCKET_NAME }}/js" --delete
-
-      - name: Invalidate com CloudFront cache
-        shell: bash
-        run: |
-          set -euo pipefail
-          aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.COM_CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"

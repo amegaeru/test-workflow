@@ -1,0 +1,52 @@
+name: JS Rollback Pre
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: js-rollback-pre
+  cancel-in-progress: false
+
+jobs:
+  rollback-pre:
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    environment: pre
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Show rollback target
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Restoring pre from backup/js-previous"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify rollback source exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_path="s3://${{ secrets.S3_BUCKET_NAME }}/backup/js-previous"
+          aws s3 ls "${backup_path}/" >/dev/null
+
+      - name: Restore pre S3 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_path="s3://${{ secrets.S3_BUCKET_NAME }}/backup/js-previous"
+          target_path="s3://${{ secrets.S3_BUCKET_NAME }}/js"
+          aws s3 sync "${backup_path}" "${target_path}" --delete
+
+      - name: Invalidate pre CloudFront cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"

@@ -1,0 +1,115 @@
+name: JS Deploy Dev
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: js-deploy-dev-develop
+  cancel-in-progress: false
+
+jobs:
+  js-linter:
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm ci
+
+      - name: Run ESLint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm run lint
+
+  js-audit:
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm ci
+
+      - name: Run npm audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd app
+          npm audit --audit-level=high
+
+  deploy-to-dev:
+    needs:
+      - js-linter
+      - js-audit
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Backup current dev S3 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_path="s3://${{ secrets.S3_BUCKET_NAME }}/js"
+          backup_path="s3://${{ secrets.S3_BUCKET_NAME }}/backup/js-previous"
+
+          if aws s3 ls "${source_path}/" >/dev/null 2>&1; then
+            aws s3 sync "${source_path}" "${backup_path}" --delete
+          else
+            echo "No existing dev files to back up."
+          fi
+
+      - name: Deploy to dev S3
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 sync ./app/js "s3://${{ secrets.S3_BUCKET_NAME }}/js" --delete
+
+      - name: Invalidate dev CloudFront cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
