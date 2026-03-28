@@ -28,7 +28,7 @@ variable "environments" {
   type = map(object({
     role_name              = string
     s3_bucket_name         = string
-    github_branches        = list(string)
+    github_environment     = string
     cloudfront_comment     = optional(string, "Static site distribution")
     cloudfront_price_class = optional(string, "PriceClass_200")
   }))
