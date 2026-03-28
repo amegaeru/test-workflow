@@ -1,6 +1,9 @@
 name: JS Deploy Com
 
 on:
+  push:
+    branches:
+      - com
   workflow_dispatch:
 
 concurrency:

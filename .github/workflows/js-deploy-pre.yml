@@ -3,7 +3,7 @@ name: JS Deploy Pre
 on:
   push:
     branches:
-      - main
+      - pre
   workflow_dispatch:
 
 concurrency:
