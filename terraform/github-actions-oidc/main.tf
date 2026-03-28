@@ -140,9 +140,37 @@ resource "aws_iam_role" "github_actions" {
   tags               = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "s3_full_access" {
-  role       = aws_iam_role.github_actions.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+data "aws_iam_policy_document" "github_actions_s3" {
+  statement {
+    sid    = "AllowBucketMetadata"
+    effect = "Allow"
+    actions = [
+      "s3:GetBucketLocation",
+      "s3:ListBucket"
+    ]
+    resources = [
+      aws_s3_bucket.site_bucket.arn
+    ]
+  }
+
+  statement {
+    sid    = "AllowJsObjectManagement"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject"
+    ]
+    resources = [
+      "${aws_s3_bucket.site_bucket.arn}/js/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_s3" {
+  name   = "${var.resource_prefix}${var.role_name}-s3"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_s3.json
 }
 
 data "aws_iam_policy_document" "github_actions_cloudfront" {
